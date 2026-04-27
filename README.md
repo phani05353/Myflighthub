@@ -2,6 +2,9 @@
 
 A self-hosted flight tracking dashboard. Add any flight by IATA number — FlightHub fetches live status from AviationStack, persists it in SQLite, polls for updates every 15 minutes, and fires alerts whenever a flight's status changes.
 
+<img width="934" height="694" alt="Screenshot 2026-04-26 at 11 17 49 PM" src="https://github.com/user-attachments/assets/ca777515-45b1-4a2c-a484-345f800ff4aa" />
+
+
 ## Stack
 
 | Layer | Tech |
