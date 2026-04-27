@@ -6,6 +6,7 @@
 # Layout expected:
 #   flighthub/
 #   ├── deploy.sh             ← this script
+#   ├── .env                  ← created on first run; edit before re-running
 #   ├── myflighthub/          ← git repo (auto-cloned if missing)
 #   └── data/                 ← SQLite DB (never touched)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -24,16 +25,50 @@ echo "║   MyFlightHub — Deploy              ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
-# ── 1. Pull latest code ───────────────────────────────────────────────────────
-echo "▶ Step 1/4 — Updating source code..."
-if [ -d "$BASE_DIR/$REPO_DIR/.git" ]; then
-  cd "$BASE_DIR/$REPO_DIR"
-  git pull
-else
-  echo "  Repo not found — cloning..."
+# ── 0. Ensure .env exists and is configured ───────────────────────────────────
+ENV_FILE="$BASE_DIR/.env"
+
+# Clone/pull the repo first so we can read .env.example if needed
+if [ ! -d "$BASE_DIR/$REPO_DIR/.git" ]; then
+  echo "▶ Step 0 — Cloning repo to read .env.example..."
   cd "$BASE_DIR"
   git clone "$REPO_URL" "$REPO_DIR"
 fi
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "▶ Step 0 — First run detected. Creating .env from template..."
+  cp "$BASE_DIR/$REPO_DIR/.env.example" "$ENV_FILE"
+  echo ""
+  echo "  ┌─────────────────────────────────────────────────────┐"
+  echo "  │  .env created at: $ENV_FILE"
+  echo "  │                                                     │"
+  echo "  │  Edit it and set your AviationStack API key:        │"
+  echo "  │    AVIATIONSTACK_API_KEY=your_key_here              │"
+  echo "  │                                                     │"
+  echo "  │  Get a free key at: https://aviationstack.com       │"
+  echo "  │                                                     │"
+  echo "  │  Then re-run:  bash deploy.sh                       │"
+  echo "  └─────────────────────────────────────────────────────┘"
+  echo ""
+  exit 0
+fi
+
+# Check the key is not still the placeholder
+if grep -q "your_key_here" "$ENV_FILE"; then
+  echo "  ✗ AVIATIONSTACK_API_KEY is still set to the placeholder."
+  echo "  Edit $ENV_FILE and replace 'your_key_here' with your real key."
+  echo "  Then re-run:  bash deploy.sh"
+  echo ""
+  exit 1
+fi
+
+echo "  ✓ .env present and configured"
+echo ""
+
+# ── 1. Pull latest code ───────────────────────────────────────────────────────
+echo "▶ Step 1/4 — Updating source code..."
+cd "$BASE_DIR/$REPO_DIR"
+git pull
 echo "  ✓ Source up to date"
 
 # ── 2. Build Docker image ─────────────────────────────────────────────────────
@@ -57,7 +92,7 @@ sudo docker run -d \
   --restart unless-stopped \
   -p "$HOST_PORT":3000 \
   -v "$BASE_DIR/data:/app/data" \
-  --env-file "$BASE_DIR/$REPO_DIR/.env" \
+  --env-file "$ENV_FILE" \
   "$IMAGE_NAME"
 
 echo "  ✓ Container started"
