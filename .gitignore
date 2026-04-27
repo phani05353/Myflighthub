@@ -22,6 +22,9 @@ pnpm-debug.log*
 *.swp
 *.swo
 
+# Runtime data
+data/
+
 # Claude / OpenWolf — internal tooling, not for version control
 CLAUDE.md
 .claude/
