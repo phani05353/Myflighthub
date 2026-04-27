@@ -6,7 +6,8 @@
 # Layout expected:
 #   flighthub/
 #   ├── deploy.sh             ← this script
-#   └── myflighthub/          ← git repo (auto-cloned if missing)
+#   ├── myflighthub/          ← git repo (auto-cloned if missing)
+#   └── data/                 ← SQLite DB (never touched)
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
@@ -54,7 +55,9 @@ echo "▶ Step 4/4 — Starting new container..."
 sudo docker run -d \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
-  -p "$HOST_PORT":80 \
+  -p "$HOST_PORT":3000 \
+  -v "$BASE_DIR/data:/app/data" \
+  --env-file "$BASE_DIR/$REPO_DIR/.env" \
   "$IMAGE_NAME"
 
 echo "  ✓ Container started"
