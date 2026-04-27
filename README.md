@@ -16,7 +16,7 @@ A self-hosted flight tracking dashboard. Add any flight by IATA number — Fligh
 
 ### 1. Get an API key
 
-Sign up at [aviationstack.com](https://aviationstack.com) for a free key (500 req/month).
+Sign up at [aviationstack.com](https://aviationstack.com) for a free key (100 req/month).
 
 ### 2. Configure environment
 
