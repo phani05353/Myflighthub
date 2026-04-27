@@ -1,22 +1,28 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
 # MyFlightHub — homelab deploy script
-# Run from anywhere inside the repo:  ./deploy.sh
 #
-# Layout (deploy.sh lives in the repo root):
-#   myflighthub/
-#   ├── deploy.sh      ← this script
-#   ├── .env           ← created on first run; edit before re-running
-#   ├── data/          ← SQLite DB lives here (gitignored, never deleted)
-#   └── ...            ← rest of repo
+# Works in two layouts:
+#   A) Script lives inside the cloned repo (dev / CI):
+#      myflighthub/
+#      ├── .git/
+#      ├── deploy.sh      ← here
+#      └── ...
+#
+#   B) Script copied to a bare deploy dir (homelab first-time):
+#      myflighthub/
+#      ├── deploy.sh      ← here (no .git)
+#      ├── .env           ← created on first run
+#      ├── data/          ← SQLite DB (never deleted)
+#      └── src/           ← repo auto-cloned here
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
+REPO_URL="https://github.com/phani05353/myflighthub"
 IMAGE_NAME="flighthub"
 CONTAINER_NAME="flighthub"
 HOST_PORT="8090"
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_FILE="$REPO_DIR/.env"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo "╔══════════════════════════════════════╗"
@@ -24,7 +30,28 @@ echo "║   MyFlightHub — Deploy              ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
+# ── Resolve repo root (layout A or B) ────────────────────────────────────────
+if git -C "$SCRIPT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+  # Layout A — script is inside the repo
+  REPO_DIR="$SCRIPT_DIR"
+else
+  # Layout B — script is in a bare deploy dir; repo lives in src/
+  REPO_DIR="$SCRIPT_DIR/src"
+  if [ -d "$REPO_DIR/.git" ]; then
+    echo "▶ Updating source code..."
+    git -C "$REPO_DIR" pull
+    echo "  ✓ Source up to date"
+  else
+    echo "▶ Cloning repo into src/..."
+    git clone "$REPO_URL" "$REPO_DIR"
+    echo "  ✓ Repo cloned"
+  fi
+  echo ""
+fi
+
 # ── 0. Ensure .env exists and is configured ───────────────────────────────────
+ENV_FILE="$SCRIPT_DIR/.env"
+
 if [ ! -f "$ENV_FILE" ]; then
   echo "▶ Step 0 — First run detected. Creating .env from template..."
   cp "$REPO_DIR/.env.example" "$ENV_FILE"
@@ -54,14 +81,15 @@ fi
 echo "  ✓ .env present and configured"
 echo ""
 
-# ── 1. Pull latest code ───────────────────────────────────────────────────────
-echo "▶ Step 1/4 — Updating source code..."
-cd "$REPO_DIR"
-git pull
-echo "  ✓ Source up to date"
+# ── 1. Pull latest code (layout A only — layout B already pulled above) ───────
+if git -C "$SCRIPT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+  echo "▶ Step 1/4 — Updating source code..."
+  git -C "$REPO_DIR" pull
+  echo "  ✓ Source up to date"
+  echo ""
+fi
 
 # ── 2. Build Docker image ─────────────────────────────────────────────────────
-echo ""
 echo "▶ Step 2/4 — Building Docker image..."
 sudo docker build -t "$IMAGE_NAME" "$REPO_DIR"
 echo "  ✓ Image built"
@@ -79,7 +107,7 @@ sudo docker run -d \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
   -p "$HOST_PORT":3000 \
-  -v "$REPO_DIR/data:/app/data" \
+  -v "$SCRIPT_DIR/data:/app/data" \
   --env-file "$ENV_FILE" \
   "$IMAGE_NAME"
 
